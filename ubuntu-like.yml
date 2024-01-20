@@ -40,31 +40,47 @@
         command: test -d /home/{{ ansible_user_id }}/.oh-my-zsh
         register: ohmyzsh
         ignore_errors: true
-      - name: Installing Oh-My-zsh
-        shell:
-          cmd: 'curl -fsL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh | bash'
-          warn: false
-        when: ohmyzsh.rc != 0
-      - name: Changing Default Shell to ZSH
-        become: yes
-        user: 
-          name: '{{ ansible_user_id }}'
-          shell: /bin/zsh 
-      - name: Changing Default ZSH Theme to Agnoster
-        lineinfile:
-          path: /home/{{ ansible_user_id }}/.zshrc
-          regexp: '^ZSH_THEME='
-          line: 'ZSH_THEME="agnoster"'
-      - name: Creating ZSH Completion folder
-        file:
-          path: /home/{{ ansible_user_id }}/.oh-my-zsh/completions
-          state: directory
-          mode: 0755
-      - name: Adding autoload to compinit
-        lineinfile:
-          path: /home/{{ ansible_user_id }}/.zshrc
-          line: 'autoload -U compinit && compinit'
+            #      - name: Installing Oh-My-zsh
+            #        shell:
+            #          cmd: 'curl -fsL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh | bash'
+            #          warn: false
+            #        when: ohmyzsh.rc != 0
+            #      - name: Changing Default Shell to ZSH
+            #        become: yes
+            #        user: 
+            #          name: '{{ ansible_user_id }}'
+            #          shell: /bin/zsh 
+            #      - name: Changing Default ZSH Theme to Agnoster
+            #        lineinfile:
+            #          path: /home/{{ ansible_user_id }}/.zshrc
+            #          regexp: '^ZSH_THEME='
+            #          line: 'ZSH_THEME="agnoster"'
+            #      - name: Creating ZSH Completion folder
+            #        file:
+            #          path: /home/{{ ansible_user_id }}/.oh-my-zsh/completions
+            #          state: directory
+            #          mode: 0755
+            #      - name: Adding autoload to compinit
+            #        lineinfile:
+            #          path: /home/{{ ansible_user_id }}/.zshrc
+            #          line: 'autoload -U compinit && compinit'
+            #          state: present
+    - block:
+      - name: Install Helm Key 
+        become: true
+        apt_key: 
+          url: 'https://baltocdn.com/helm/signing.asc'
           state: present
+      - name: Install Helm Repository
+        become: true
+        apt_repository:
+          repo: 'deb [arch=amd64] https://baltocdn.com/helm/stable/debian/ all main'
+          state: present
+          filename: helm-stable-debian.list
+      - name: Install Helm
+        become: true
+        apt:
+          name: helm 
 
     - block:
       - name: Install Google Key
@@ -92,21 +108,21 @@
           remote_src: yes
 
     - block:
-      - name: Installing Terraform 1.6.6
+      - name: Installing Terraform 1.7.0
         become: true
         unarchive:
-          src: 'https://releases.hashicorp.com/terraform/1.6.6/terraform_1.6.6_linux_amd64.zip' 
+          src: 'https://releases.hashicorp.com/terraform/1.7.0/terraform_1.7.0_linux_amd64.zip' 
           dest: /usr/local/bin
           remote_src: yes
 
-    - block:
-      - name: Installing gomplate 3.9.0
-        become: true
-        get_url:    
-          url: 'https://github.com/hairyhenderson/gomplate/releases/download/v3.9.0/gomplate_linux-amd64'
-          dest: /usr/local/bin/gomplate
-          mode: 755
-
+            #    - block:
+            #      - name: Installing gomplate 3.9.0
+            #        become: true
+            #        get_url:    
+            #          url: 'https://github.com/hairyhenderson/gomplate/releases/download/v3.9.0/gomplate_linux-amd64'
+            #          dest: /usr/local/bin/gomplate
+            #          mode: 755
+            #
     - block:
       - name: Install Microsoft Key
         become: true
@@ -134,68 +150,68 @@
           - gruntfuggly.todo-tree
           - njpwerner.autodocstring
           - eamodio.gitlens
-
-    - block: 
-      - name: Install Docker Key
-        become: true
-        apt_key:
-          url: 'https://download.docker.com/linux/ubuntu/gpg'
-          state: present
-      - name: Install Docker Repository
-        become: true
-        apt_repository:
-          repo: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable'
-          state: present
-          filename: docker-ce
-      - name: Install Docker
-        become: true
-        apt:
-          name: docker-ce
-      - name: Adding existing user to group Docker
-        become: yes
-        user: 
-          name: '{{ ansible_user_id }}'
-          groups: docker 
-          append: yes
-      - name: Install Docker-Compose
-        become: true
-        get_url:
-          url: 'https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64' 
-          dest: '/usr/local/bin/docker-compose'
-          mode: 755
-      - name: Install Docker Machine Bash Completion
-        become: true
-        get_url:
-          url: 'https://raw.githubusercontent.com/docker/machine/v0.16.0/contrib/completion/bash/docker-machine.bash'
-          dest: '/etc/bash_completion.d/docker-machine'
-      - name: Install Docker-Compose Bash Completion
-        become: true
-        get_url:
-          url: 'https://raw.githubusercontent.com/docker/compose/1.26.2/contrib/completion/bash/docker-compose'
-          dest: '/etc/bash_completion.d/docker-compose'
-      - name: Install Docker-Compose and Docker Machine Zsh Completion
-        lineinfile:
-          path: /home/{{ ansible_user_id }}/.zshrc
-          regexp: '^plugins='
-          line: 'plugins=(git docker docker-compose)'
-        
-    - block:
-      - name: Installing Kubectl 1.22.0
-        become: true
-        get_url:    
-          url: 'https://dl.k8s.io/release/v1.22.0/bin/linux/amd64/kubectl'
-          dest: /usr/local/bin/kubectl
-          mode: 755
-          
-    - block:
-      - name: Adding Longsleep/Golang Backports Repository
-        become: true
-        apt_repository:
-          repo: 'ppa:longsleep/golang-backports'
-      - name: Install Golang 
-        become: true
-        apt:
-          name: golang-go
+            #
+            #    - block: 
+            #      - name: Install Docker Key
+            #        become: true
+            #        apt_key:
+            #          url: 'https://download.docker.com/linux/ubuntu/gpg'
+            #          state: present
+            #      - name: Install Docker Repository
+            #        become: true
+            #        apt_repository:
+            #          repo: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable'
+            #          state: present
+            #          filename: docker-ce
+            #      - name: Install Docker
+            #        become: true
+            #        apt:
+            #          name: docker-ce
+            #      - name: Adding existing user to group Docker
+            #        become: yes
+            #        user: 
+            #          name: '{{ ansible_user_id }}'
+            #          groups: docker 
+            #          append: yes
+            #      - name: Install Docker-Compose
+            #        become: true
+            #        get_url:
+            #          url: 'https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64' 
+            #          dest: '/usr/local/bin/docker-compose'
+            #          mode: 755
+            #      - name: Install Docker Machine Bash Completion
+            #        become: true
+            #        get_url:
+            #          url: 'https://raw.githubusercontent.com/docker/machine/v0.16.0/contrib/completion/bash/docker-machine.bash'
+            #          dest: '/etc/bash_completion.d/docker-machine'
+            #      - name: Install Docker-Compose Bash Completion
+            #        become: true
+            #        get_url:
+            #          url: 'https://raw.githubusercontent.com/docker/compose/1.26.2/contrib/completion/bash/docker-compose'
+            #          dest: '/etc/bash_completion.d/docker-compose'
+            #      - name: Install Docker-Compose and Docker Machine Zsh Completion
+            #        lineinfile:
+            #          path: /home/{{ ansible_user_id }}/.zshrc
+            #          regexp: '^plugins='
+            #          line: 'plugins=(git docker docker-compose)'
+            #        
+            #    - block:
+            #      - name: Installing Kubectl 1.22.0
+            #        become: true
+            #        get_url:    
+            #          url: 'https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl' 
+            #          dest: /usr/local/bin/kubectl
+            #          mode: 755
+            #          
+            #    - block:
+            #      - name: Adding Longsleep/Golang Backports Repository
+            #        become: true
+            #        apt_repository:
+            #          repo: 'ppa:longsleep/golang-backports'
+            #      - name: Install Golang 
+            #        become: true
+            #        apt:
+            #          name: golang-go
           
 # OPTIONAL:
 #  - PEEK - Lightweight Screen Recorder that can export as GIF
@@ -203,29 +219,29 @@
 #  - Brave Browser - Secure web browser
 #  - Ulauncher - Application Launcher
 
-    - block:
-      - name: Adding Peek Repository
-        become: true
-        apt_repository:
-          repo: 'ppa:peek-developers/stable'
-      - name: Install Peek
-        become: true
-        apt:
-          name: peek
-
-    - block: 
-      - name: Install Brave Key
-        become: true
-        apt_key:
-          url: 'https://brave-browser-apt-release.s3.brave.com/brave-core.asc'
-          state: present
-      - name: Install Brave Repository
-        become: true
-        apt_repository:
-          repo: 'deb [arch=amd64] https://brave-browser-apt-release.s3.brave.com/ stable main'
-          state: present
-          filename: brave
-      - name: Install Brave Browser
-        become: true
-        apt:
-          name: brave-browser
+            #    - block:
+            #      - name: Adding Peek Repository
+            #        become: true
+            #        apt_repository:
+            #          repo: 'ppa:peek-developers/stable'
+            #      - name: Install Peek
+            #        become: true
+            #        apt:
+            #          name: peek
+            #
+            #    - block: 
+            #      - name: Install Brave Key
+            #        become: true
+            #        apt_key:
+            #          url: 'https://brave-browser-apt-release.s3.brave.com/brave-core.asc'
+            #          state: present
+            #      - name: Install Brave Repository
+            #        become: true
+            #        apt_repository:
+            #          repo: 'deb [arch=amd64] https://brave-browser-apt-release.s3.brave.com/ stable main'
+            #          state: present
+            #          filename: brave
+            #      - name: Install Brave Browser
+            #        become: true
+            #        apt:
+            #          name: brave-browser
