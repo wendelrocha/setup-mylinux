@@ -177,14 +177,14 @@
           dest: /usr/local/bin
           remote_src: yes
 
-            #    - block:
-            #      - name: Installing gomplate 3.9.0
-            #        become: true
-            #        get_url:    
-            #          url: 'https://github.com/hairyhenderson/gomplate/releases/download/v3.9.0/gomplate_linux-amd64'
-            #          dest: /usr/local/bin/gomplate
-            #          mode: 755
-            #
+    - block:
+      - name: Installing OpenTofu 
+        become: true
+        unarchive:
+          src: 'https://github.com/opentofu/opentofu/releases/download/v1.6.0/tofu_1.6.0_linux_amd64.zip' 
+          dest: /usr/local/bin
+          remote_src: yes
+   
     - block:
       - name: Install Microsoft Key
         become: true
