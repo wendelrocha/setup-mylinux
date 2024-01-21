@@ -1,4 +1,6 @@
-# Workstation Tools
+# Automatizando o setup em um Linux, Debian-Like
+
+Este repositório é um Fork que estou adaptando para minha realidade. 
 
 This repository contains scripts to automate and speedup the workflow and preparation for my machine.
 
