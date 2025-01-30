@@ -30,31 +30,43 @@
           - fonts-hack
           - tilix
           - virtualbox
-          - mlocate
+          - plocate
           - krita
           - jq
           - mtr
+          - unzip
 
     - block:
-      - name: Verify if Oh-My-zsh is installed
-        command: test -d /home/{{ ansible_user_id }}/.oh-my-zsh
+      - name: Verify if Oh-My-Zsh is installed
+        stat:
+          path: /home/{{ ansible_user_id }}/.oh-my-zsh
         register: ohmyzsh
-        ignore_errors: true
-      - name: Installing Oh-My-zsh
-        shell:
-          cmd: 'curl -fsL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh | bash'
-          warn: false
-        when: ohmyzsh.rc != 0
+
+      - name: Install Oh-My-Zsh if not installed
+        shell: |
+          sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" --unattended
+        args:
+          chdir: /home/{{ ansible_user_id }}
+        become: true
+        become_user: "{{ ansible_user_id }}"
+        when: not ohmyzsh.stat.exists
+
+      - name: Debug message if Oh-My-Zsh is already installed
+        debug:
+          msg: "Oh-My-Zsh is already installed."
+        when: ohmyzsh.stat.exists
+
       - name: Changing Default Shell to ZSH
-        become: yes
-        user: 
-          name: '{{ ansible_user_id }}'
-          shell: /bin/zsh 
+        become: true
+        become_user: '{{ ansible_user_id }}'
+        shell: /bin/zsh
+
       - name: Changing Default ZSH Theme to Agnoster
         lineinfile:
           path: /home/{{ ansible_user_id }}/.zshrc
           regexp: '^ZSH_THEME='
           line: 'ZSH_THEME="agnoster"'
+      
       - name: Creating ZSH Completion folder
         file:
           path: /home/{{ ansible_user_id }}/.oh-my-zsh/completions
@@ -66,11 +78,25 @@
           line: 'autoload -U compinit && compinit'
           state: present
 
-    - name: Installing AWS CLI via pip3
-      become: true
-      pip:
-        name: awscli
-        executable: pip3
+      - name: Check if AWS CLI is installed
+        command: aws --version
+        register: aws_cli
+        ignore_errors: true
+
+      - name: Install AWS CLI 
+        shell: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86\_64.zip" -o "awscliv2.zip" 
+          unzip awscliv2.zip
+          sudo ./aws/install
+          rm -rf aws awscli2.zip
+        args:
+          chdir: /tmp
+        when: aws_cli.failed
+
+      - name: Debug message if AWS CLI is already installed
+        debug:
+          msg: "AWS CLI is already installed."
+        when: not aws_cli.failed
 
     - block:
       - name: Install Google Key
@@ -90,102 +116,60 @@
           name: google-chrome-stable
 
     - block:
-      - name: Installing Vagrant 2.2.18
+      - name: Installing Vagrant 2.4.3
         become: true
         unarchive:
-          src: 'https://releases.hashicorp.com/vagrant/2.2.18/vagrant_2.2.18_linux_amd64.zip'
+          src: 'https://releases.hashicorp.com/vagrant/2.4.3/vagrant_2.4.3_linux_amd64.zip'
           dest: /usr/local/bin
           remote_src: yes
 
     - block:
-      - name: Installing Terraform 0.12.31
+      - name: Installing Terraform 1.10.5
         become: true
         unarchive:
-          src: 'https://releases.hashicorp.com/terraform/0.12.31/terraform_0.12.31_linux_amd64.zip'
+          src: 'https://releases.hashicorp.com/terraform/1.10.5/terraform_1.10.5_linux_amd64.zip'
           dest: /usr/local/bin
           remote_src: yes
-      - name: Renaming terraform12 binary
-        become: true
-        command: mv /usr/local/bin/terraform /usr/local/bin/terraform12
-      - name: Installing Terraform 0.13.7 
-        become: true
-        unarchive:
-          src: 'https://releases.hashicorp.com/terraform/0.13.7/terraform_0.13.7_linux_amd64.zip'
-          dest: /usr/local/bin
-          remote_src: yes
-      - name: Renaming terraform13 binary
-        become: true
-        command: mv /usr/local/bin/terraform /usr/local/bin/terraform13
-      - name: Installing Terraform 0.14.11
-        become: true
-        unarchive:
-          src: 'https://releases.hashicorp.com/terraform/0.14.11/terraform_0.14.11_linux_amd64.zip'
-          dest: /usr/local/bin
-          remote_src: yes
-      - name: Renaming terraform14 binary
-        become: true
-        command: mv /usr/local/bin/terraform /usr/local/bin/terraform14
-      - name: Installing Terraform 0.15.0
-        become: true
-        unarchive:
-          src: 'https://releases.hashicorp.com/terraform/0.15.5/terraform_0.15.5_linux_amd64.zip'
-          dest: /usr/local/bin
-          remote_src: yes
-      - name: Renaming terraform15 binary
-        become: true
-        command: mv /usr/local/bin/terraform /usr/local/bin/terraform15
-      - name: Installing Terraform 1.0.4
-        become: true
-        unarchive:
-          src: 'https://releases.hashicorp.com/terraform/1.0.4/terraform_1.0.4_linux_amd64.zip'
-          dest: /usr/local/bin
-          remote_src: yes
-      - name: Renaming terraform1 binary
-        become: true
-        command: mv /usr/local/bin/terraform /usr/local/bin/terraform1
 
-    - block:
       - name: Installing Vault 1.8.1
         become: true
         unarchive:
-          src: 'https://releases.hashicorp.com/vault/1.8.1/vault_1.8.1_linux_amd64.zip'
+          src: 'https://releases.hashicorp.com/vault/1.18.3/vault_1.18.3_linux_amd64.zip'
           dest: /usr/local/bin
           remote_src: yes
 
     - block:
-      - name: Installing gomplate 3.9.0
+      - name: Installing gomplate 4.3.0
         become: true
         get_url:    
-          url: 'https://github.com/hairyhenderson/gomplate/releases/download/v3.9.0/gomplate_linux-amd64'
+          url: 'https://github.com/hairyhenderson/gomplate/releases/download/v4.3.0/gomplate_linux-amd64'
           dest: /usr/local/bin/gomplate
           mode: 755
 
     - block:
-      - name: Installing Stern 1.11.0
+      - name: Installing Stern 1.32.0
         become: true
         get_url:    
-          url: 'https://github.com/wercker/stern/releases/download/1.11.0/stern_linux_amd64'
-          dest: /usr/local/bin/stern
-          mode: 755
+          url: 'https://github.com/stern/stern/releases/download/v1.32.0/stern_1.32.0_linux_amd64.tar.gz'
+          dest: /tmp/stern_1.32.0_linux_amd64.tar.gz
+          mode: 0755
+      - name: Extract the tar.gz file
+        unarchive:
+          src: /tmp/stern_1.32.0_linux_amd64.tar.gz
+          dest: /tmp
+          remote_src: yes
+      - name: Move the stern binary to /usr/local/bin
+        become: true
+        copy:
+          src: /tmp/stern
+          dest: /usr/local/bin
+          mode: 0755
+      - name: Clean up temporary files
+        become: true
+        file:
+          path: /tmp/stern_1.32.0_linux_amd64.tar.gz
+          state: absent
 
-    - block:
-      - name: Install Google Cloud SDK Key
-        become: true
-        apt_key:
-          url: 'https://packages.cloud.google.com/apt/doc/apt-key.gpg'
-          state: present
-      - name: Install Google Cloud SDK Repository
-        become: true
-        apt_repository:
-          repo: 'deb [arch=amd64] https://packages.cloud.google.com/apt cloud-sdk main'
-          state: present
-          filename: google-cloud-sdk
-      - name: Install Google Cloud SDK
-        become: true
-        apt:
-          name: google-cloud-sdk
-
-          
     - block:
       - name: Install Microsoft Key
         become: true
@@ -259,10 +243,10 @@
           line: 'plugins=(git docker docker-compose)'
         
     - block:
-      - name: Installing Kubectl 1.22.0
+      - name: Installing Kubectl 1.32.0
         become: true
         get_url:    
-          url: 'https://dl.k8s.io/release/v1.22.0/bin/linux/amd64/kubectl'
+          url: 'https://dl.k8s.io/release/v1.32.0/bin/linux/amd64/kubectl'
           dest: /usr/local/bin/kubectl
           mode: 755
       - name: Downloading Kubectx and Kubens 
@@ -314,16 +298,6 @@
         apt:
           name: peek
 
-    - block:
-      - name: Install obsproject Ubuntu Repo
-        become: true
-        apt_repository:
-          repo: 'ppa:obsproject/obs-studio'
-      - name: Install obs Studio
-        become: true
-        apt:
-          name: obs-studio
-
     - block: 
       - name: Install Brave Key
         become: true
@@ -340,13 +314,3 @@
         become: true
         apt:
           name: brave-browser
-
-    - block:
-      - name: Adding Ulauncher Repository
-        become: true
-        apt_repository:
-          repo: 'ppa:agornostal/ulauncher'
-      - name: Install Ulauncher
-        become: true
-        apt:
-          name: ulauncher
